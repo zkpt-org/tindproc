@@ -1,5 +1,6 @@
-import urllib, pycurl, cStringIO, os, config
+import urllib, pycurl, cStringIO, os, config, copy
 from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
+from response import DasResponse
 #from django.http import QueryDict
 
 class Das:
@@ -67,61 +68,99 @@ class Das:
         pt = xml.find('cas:proxyticket').string if xml.find('cas:proxyticket') else xml
         return str(pt)
     
-    def api(self, p):        
-        for k, v in p.iteritems(): 
-            if isinstance(v, list): p[k] = str(v[0])
+    def api(self, p):
+        """Make API call, return the result string."""
+        q = copy.deepcopy(p)
         
-        if p['service'] == "search":
+        for k, v in q.iteritems(): 
+            if isinstance(v, list): q[k] = str(v[0])
+        
+        if q['service'] == "search":
             url = self.API_URL + "/memberSearch/"
-        elif p['service'] == "report":
+        elif q['service'] == "report":
             url = self.API_URL + "/esReport/"
-        elif p['service'] == "create":
+        elif q['service'] == "create":
             url = self.API_URL + "/cohort/create/"
-        elif p['service'] == "update":
+        elif q['service'] == "update":
             url = self.API_URL + "/cohort/update/"
-        elif p['service'] == "delete":
+        elif q['service'] == "delete":
             url = self.API_URL + "/cohort/delete/"
-        elif p['service'] == "config":
+        elif q['service'] == "config":
             url = self.API_URL + "/config/"
         else:
             url = self.API_URL + "/memberSearch/"
         
-        del p['service']
+        del q['service']
         
-        p['ticket']     = self.get_proxy_ticket()
-        p['clientName'] = self.CLIENT_NAME
-        p['clientId']   = self.CLIENT_ID
+        q['ticket']     = self.get_proxy_ticket()
+        q['clientName'] = self.CLIENT_NAME
+        q['clientId']   = self.CLIENT_ID
         
-        self.call = url + "?" + urllib.urlencode(p)
+        self.call = url + "?" + urllib.urlencode(q)
         print self.call + "\n"
         
-        return self.curl(url, p, peer=True)
+        return self.curl(url, q, peer=True)
     
     def to_dict(self, p):
+        """Make API call and return result string as a dictionary."""
         import json
         data = self.api(p)
         return json.loads(data)
     
     def to_list(self, p):
+        """Make API call and return result_sets as a list of dictionaries."""
         response = self.to_dict(p)
         data = [response['result_sets'][n] for n in response['result_sets']]
         return data
     
     def response(self, p):
-        from response import DasResponse
+        """Make API call and return a DasResponse object."""
         response = DasResponse(self, p)
         return response
     
     def all(self, p):
-        from response import DasResponse
-        p['page'] = '1'
-        p['pageSize'] = '0'
-        response = DasResponse(self, p)
+        """Get all records from the database."""
+        q = copy.deepcopy(p)
+        q['page'], q['pageSize'] = '1', '0'
+        """Create an DasResponse instance with page size 0. to claculate number of pages."""
+        r = DasResponse(self, q)
+        """Use 'pageSize' if the page size was provided, else use default page size."""
+        pages = r.calc_pages(p['pageSize'] if 'pageSize' in p else None)
+        return self.pages(p, 1, pages)
     
-    def pages(self, x, y, p):
-        from response import DasResponse
-        response = DasResponse(self, p).pages()
+    def pages(self, p, x, y):
+        """Get records contained in the indicated pages."""
+        if p['service'] == 'search':
+            responses = []
+            for page in range(x, y+1):
+                p["page"] = str(page)
+                responses.append(DasResponse(self, p))
+            return self.concat(responses)
+        else:
+            DasResponse(self, p).DasResponseTypeError(self.__class__.__name__ + ".pages")
+    
+    def concat(self, responses):
+        """Flatten responses from a multipage query into one response."""
+        concat0 = []
+        concat1 = []
+        concat2 = []
+        qtime = 0.0
+        rtime = 0.0
         
+        for r in responses:
+            concat0 += r.results
+            concat1 += r.data['result_sets']
+            concat2.append(r.raw)
+            qtime += r.querytime
+            rtime += r.rendertime
+            
+        r.results = concat0
+        r.data['result_sets'] = concat1
+        r.raw = "[" + ",".join(concat2) + "]"
+        r.querytime  = r.queryTime     = r.data['summary']['queryTime']     = qtime
+        r.rendertime = r.renderingTime = r.data['summary']['renderingTime'] = rtime
+        return r
+    
     def api_call(self, p):
         for k, v in p.iteritems(): 
             if isinstance(v, list): p[k] = str(v[0])
