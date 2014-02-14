@@ -11,7 +11,7 @@ class DasResponse(object):
             self.parse(self.data)
             self.page  = int(p["page"]) if "page" in p else 1
             self.size  = int(p["pageSize"]) if "pageSize" in p else self.DEFAULT_PAGE_SIZE
-            self.pages = self.calc_pages(self.size)
+            self.pages = self.numpages(self.size)
         else:
             self.page  = None
             self.size  = None
@@ -22,9 +22,9 @@ class DasResponse(object):
             self.rendertime = self.renderingTime = None
             self.total      = self.totalCounts   = None
     
-    def calc_pages(self, *args):
+    def numpages(self, *args):
         if self.type != "search":
-            self.DasResponseTypeError(self.__class__.__name__ + ".calc_pages")
+            self.DasResponseTypeError(self.__class__.__name__ + ".numpages")
         else:
             if not args:
                 size = self.DEFAULT_PAGE_SIZE

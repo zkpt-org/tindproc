@@ -125,7 +125,7 @@ class Das:
         """Create an DasResponse instance with page size 0. to claculate number of pages."""
         r = DasResponse(self, q)
         """Use 'pageSize' if the page size was provided, else use default page size."""
-        pages = r.calc_pages(p['pageSize'] if 'pageSize' in p else None)
+        pages = r.numpages(p['pageSize'] if 'pageSize' in p else None)
         return self.pages(p, 1, pages)
     
     def pages(self, p, x, y):
