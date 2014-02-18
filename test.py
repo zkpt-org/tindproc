@@ -1,11 +1,14 @@
-import IPython.core.ipapi, os #, time
+import IPython.core.ipapi, os, sys #, time
 from datetime import datetime
+# sys.path.append('./')
+from das.das import Das
 
 ipython = IPython.core.ipapi.get()
 ipython.magic('%load_ext autoreload')
 ipython.magic('%autoreload 2')
 
-from das import Das
+timer = datetime.now()
+
 if 'PGT' not in os.environ:
     das = Das()
     das.auth()
@@ -24,13 +27,12 @@ p = {"service" : "search", "table" : "ms"}
 #     "comparisonFrom" : "2012-01-01",
 #     "comparisonTo"   : "2012-12-31"}
 
-timer = datetime.now()
 # r = das.api(p)
 # r = das.to_dict(p)
 # r = das.to_list(p)
 
 # r = das.response(p)
-# r = das.pages(p, 1, 10)
-r = das.all(p)
+r = das.pages(p, 1, 10)
+# r = das.all(p)
 
 print "Executed in", str(datetime.now()-timer)[:-4] + "\a\n"
