@@ -31,8 +31,8 @@ p = {"service" : "search", "table" : "ms"}
 # r = das.to_dict(p)
 # r = das.to_list(p)
 
-# r = das.response(p)
-r = das.pages(p, 1, 10)
+r = das.response(p)
+# r = das.pages(p, 1, 10)
 # r = das.all(p)
 
 print "Executed in", str(datetime.now()-timer)[:-4] + "\a\n"

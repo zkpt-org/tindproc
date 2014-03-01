@@ -3,3 +3,4 @@ venv
 *.pyc
 .DS_Store
 config.py
+errors.log

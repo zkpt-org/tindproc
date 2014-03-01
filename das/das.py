@@ -77,22 +77,24 @@ class Das:
         for k, v in q.iteritems(): 
             if isinstance(v, list): q[k] = str(v[0])
         
-        if q['service'] == "search":
+        service = q['service'] if 'service' in q else "search"
+        
+        if 'service' in q: del q['service']
+        
+        if service == "search":
             url = self.API_URL + "/memberSearch/"
-        elif q['service'] == "report":
+        elif service == "report":
             url = self.API_URL + "/esReport/"
-        elif q['service'] == "create":
+        elif service == "create":
             url = self.API_URL + "/cohort/create/"
-        elif q['service'] == "update":
+        elif service == "update":
             url = self.API_URL + "/cohort/update/"
-        elif q['service'] == "delete":
+        elif service == "delete":
             url = self.API_URL + "/cohort/delete/"
-        elif q['service'] == "config":
+        elif service == "config":
             url = self.API_URL + "/config/"
         else:
             url = self.API_URL + "/memberSearch/"
-        
-        del q['service']
         
         q['ticket']     = self.get_proxy_ticket()
         q['clientName'] = self.CLIENT_NAME
@@ -107,7 +109,6 @@ class Das:
         """Make API call and return result string as a dictionary."""
         import json
         data = self.api(p)
-        # print data + "\n"
         return json.loads(data)
     
     def to_list(self, p):
@@ -135,6 +136,7 @@ class Das:
         """Get records contained in the indicated pages."""
         if p['service'] == 'search':
             responses = []
+            if y < x: y = x
             for page in range(x, y+1):
                 p["page"] = str(page)
                 responses.append(DasResponse(self, p))
@@ -156,13 +158,19 @@ class Das:
             concat2.append(r.raw)
             qtime += r.querytime
             rtime += r.rendertime
-            
+        
+        # if responses:    
         r.results = concat0
-        r.data['result_sets'] = concat1
         r.raw = "[" + ",".join(concat2) + "]"
-        r.querytime  = r.queryTime     = r.data['summary']['queryTime']     = qtime
-        r.rendertime = r.renderingTime = r.data['summary']['renderingTime'] = rtime
+        
+        if 'result_sets' in r.data:
+            r.data['result_sets'] = concat1
+        if 'summary' in r.data:
+            r.querytime  = r.queryTime     = r.data['summary']['queryTime']     = qtime
+            r.rendertime = r.renderingTime = r.data['summary']['renderingTime'] = rtime
         return r
+        # else:
+        #     return DasResponse(self, {}).nullset()
     
     def api_call(self, p):
         for k, v in p.iteritems(): 
