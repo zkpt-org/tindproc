@@ -8,17 +8,22 @@ class Das:
         import config
         self.USER     = config.user
         self.PASS     = config.pwrd
-        self.HOST     = 'tind-lite.zakipoint.com'
-        self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
-        self.SERVICE  = 'https://tind-lite.zakipoint.com'
+        # self.HOST     = 'tind-lite.zakipoint.com'
+        # self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
+        # self.SERVICE  = 'https://tind-lite.zakipoint.com'
         self.PROXY    = 'https://proxy.zakipoint.com/'
         self.VALIDATE = 'https://login.deerwalk.com/cas/serviceValidate'
         self.API_URL  = 'https://das.deerwalk.com'
         self.PT_URL   = 'https://login.deerwalk.com/cas/proxy'
         
         self.CLIENT_ID   = '2000'
-        self.CLIENT_NAME = 'tind'
-    
+        # self.CLIENT_NAME = 'tind'
+        
+        self.HOST     = 'sdemo.makalu.deerwalk.com'
+        self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
+        self.SERVICE  = 'https://sdemo.makalu.deerwalk.com'
+        self.CLIENT_NAME = 'sdemo'
+        
     def auth(self):
         response = self.get_ticket_granting_ticket(self.USER, self.PASS)
         
@@ -103,13 +108,16 @@ class Das:
         self.call = url + "?" + urllib.urlencode(q)
         print urllib.unquote(self.call) + "\n"
         
-        return self.curl(url, q, peer=True)
+        response = self.curl(url, q, peer=True)
+        # print response
+        return response
     
     def to_dict(self, p):
         """Make API call and return result string as a dictionary."""
         import json
         data = self.api(p)
         return json.loads(data)
+        
     
     def to_list(self, p):
         """Make API call and return result_sets as a list of dictionaries."""

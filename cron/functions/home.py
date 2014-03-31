@@ -2,47 +2,24 @@ import os, datetime, calendar
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
-from lib.helpers import format_query
+from lib.helpers import format_query, empty_query, claims
 
-def graph1(das, win):
+def graph1(das, win, q):
     reporting_from  = win["reporting_from"]
     reporting_to    = win["reporting_to"]
     
     comparison_from = win["comparison_from"]
     comparison_to   = win["comparison_to"]
     
-    params = {
-        "service"       : "report", 
-        "report"        : "summary",
-        "reportingBasis": "ServiceDate",
-        "eligibilityType":"[medical]",
-        "reportingFrom" : reporting_from,
-        "reportingTo"   : reporting_to,
-        "comparisonFrom": comparison_from,
-        "comparisonTo"  : comparison_to}
+    if empty_query(q):
+        data = graph1_summary(das, win)
+    else:
+        # query = format_query(q, das, reporting_from, reporting_to)
+        resp = claims(das, reporting_from, reporting_to)
+        df = resp.dataframe()
+        return df
     
-    response = das.to_dict(params)
-    comparison = response["comparison"][0]
-    reporting  = response["reporting"][0]
-    
-    data = [
-        {
-            "Period"         : "Reporting",
-            "Inpatient"      : round(reporting["Inpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-            "Outpatient"     : round(reporting["Outpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-            "Office Visit"   : round(reporting["Office"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-            "Pharmacy Claims": round(reporting["totalPharmacyPaidAmount"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-        },
-        {
-            "Period"         : "Comparison",
-            "Inpatient"      : round(comparison["Inpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-            "Outpatient"     : round(comparison["Outpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-            "Office Visit"   : round(comparison["Office"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-            "Pharmacy Claims": round(comparison["totalPharmacyPaidAmount"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-        },
-    ]
-    
-    return data
+    # return data
 
 def graph2(das, win):
     reporting_from  = win["reporting_from"]
@@ -175,9 +152,11 @@ def graph4(das, win, q):
     comparison_from = win["comparison_from"]
     comparison_to   = win["comparison_to"]
     
-    query = format_query(q, das, reporting_from, reporting_to)
+    queries = format_query(q, das, reporting_from, reporting_to)
     
-    total_claims = count_claims(reporting_from, reporting_to, query, das)
+    total_claims = 0
+    for query in queries:
+        total_claims += count_claims(reporting_from, reporting_to, query, das)
     
     psize = total_claims / 99 if total_claims % 100 > 0 else total_claims / 100
     pages = 100
@@ -185,14 +164,15 @@ def graph4(das, win, q):
     results = []
     
     for p in range(1, pages+1):
-        cumul = cumulative(reporting_from, reporting_to, query, das, p, psize)        
-        if cumul:
-            cailms = pd.DataFrame(cumul)[['paidAmount']]
-            total += np.asscalar(cailms.sum())
-            results.append({"claims" : p, "cost" : total})
-        else:
-            return "No Data"
-    
+        for query in queries:
+            cumul = cumulative(reporting_from, reporting_to, query, das, p, psize)        
+            
+            if cumul:
+                cailms = pd.DataFrame(cumul)[['paidAmount']]
+                total += np.asscalar(cailms.sum())
+            # else:
+            #     return "No Data"
+        results.append({"claims" : p, "cost" : total})
     for row in results:
         row["cost"] = round(row["cost"]/total*100, 2)
     
@@ -204,7 +184,7 @@ def count_claims(_from, _to, query, das):
         "table"    : "smc",
         "page"     : "1",
         "pageSize" : "0",
-        "query"    :"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query+"]}"}
+        "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query+"]}"}
     
     response = das.to_dict(params)
     return response["summary"]["totalCounts"]
@@ -248,3 +228,42 @@ def count_er_visits(_from, _to, das):
         "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'erVisit.gt':0}]}"}
     
     return das.to_dict(params)["summary"]["totalCounts"]
+
+def graph1_summary(das, win):
+    reporting_from  = win["reporting_from"]
+    reporting_to    = win["reporting_to"]
+    
+    comparison_from = win["comparison_from"]
+    comparison_to   = win["comparison_to"]
+    
+    params = {
+        "service"       : "report", 
+        "report"        : "summary",
+        "reportingBasis": "ServiceDate",
+        "eligibilityType":"[medical]",
+        "reportingFrom" : reporting_from,
+        "reportingTo"   : reporting_to,
+        "comparisonFrom": comparison_from,
+        "comparisonTo"  : comparison_to}
+    
+    response = das.to_dict(params)
+    comparison = response["comparison"][0]
+    reporting  = response["reporting"][0]
+    
+    data = [
+        {
+            "Period"         : "Reporting",
+            "Inpatient"      : round(reporting["Inpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+            "Outpatient"     : round(reporting["Outpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+            "Office Visit"   : round(reporting["Office"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+            "Pharmacy Claims": round(reporting["totalPharmacyPaidAmount"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+        },
+        {
+            "Period"         : "Comparison",
+            "Inpatient"      : round(comparison["Inpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+            "Outpatient"     : round(comparison["Outpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+            "Office Visit"   : round(comparison["Office"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+            "Pharmacy Claims": round(comparison["totalPharmacyPaidAmount"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+        },
+    ]
+    return data

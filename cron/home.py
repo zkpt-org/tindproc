@@ -1,13 +1,14 @@
 #!/usr/local/bin/python
 import IPython.core.ipapi, os, sys, json, copy, itertools
 from datetime import datetime
+import cPickle as pickle
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 os.chdir(dirname)
 sys.path.append('../')
 from das.das import Das
 from lib.db import PgSQL
-from lib.helpers import timewindow, chronic, employers
+from lib.helpers import timewindow, chronic, employers, claims
 from functions import home
 
 # set up ipython development environment
@@ -29,7 +30,9 @@ else:
 
 win = timewindow(das)
 # emp = employers(das, win)
-sys.exit()
+# claims = claims(das, win['reporting_from'], win['reporting_to'])
+# mddf = claims.dataframe()
+# sys.exit()
 
 cuts = [
 ['ALL','XYZ private ltd','ABC corporation'], # client
@@ -39,6 +42,15 @@ cuts = [
 ['ALL', '18-29', '30-39', '40-49', '50-59', '60-69', '70+'], # age group
 ['ALL'] + chronic(das, win) # conditions
 ]
+
+# cuts = [
+# ['ALL'], # client
+# ['ALL'], # office
+# ['ALL'], # level
+# ['ALL'], # gender
+# ['ALL'], # age group
+# ['ALL'] #+ chronic(das, win) # conditions
+# ]
 
 cycles = 0
 for cut in itertools.product(*cuts): cycles+=1
@@ -61,9 +73,10 @@ for cut in itertools.product(*cuts):
 
     # try:
         # if not sql.select(table='home_graph1', where=query):
-        #     g1 = json.dumps(home.graph1(das, win))
-        #     insert["data"] = str(g1)
-        #     sql.insert(table='home_graph1', rows=[insert])
+        #     g1 = home.graph1(das, win, query)
+        # g1 = json.dumps(home.graph1(das, win, query))
+        # insert["data"] = str(g1)
+        # sql.insert(table='home_graph1', rows=[insert])
         #     
         # if not sql.select(table='home_graph2', where=query):
         #     g2 = json.dumps(home.graph2(das, win))
@@ -78,7 +91,6 @@ for cut in itertools.product(*cuts):
     if not sql.select(table='home_graph4', where=query):
         g4 = json.dumps(home.graph4(das, win, query))
         insert["data"] = str(g4)
-        print g4
         sql.insert(table='home_graph4', rows=[insert])
 
     # except Exception,e:

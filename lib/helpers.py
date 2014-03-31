@@ -69,7 +69,9 @@ def employers(das, win):
     return list(set([(i.groupIdName, i.groupId) for i in emp.results if 'groupIdName' in vars(i)]))
 
 def format_query(q, das, _from, _to):
-    query = ""
+    query   = ""
+    queries = []
+    
     for key, val in q.items():
         if val != "ALL":
             if key == "client":
@@ -94,13 +96,58 @@ def format_query(q, das, _from, _to):
                 p = {
                 "service":"search",
                 "table":"ms",
-                "query":"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'primaryDiagnosis.eq':'"+val+"'}]}}",
+                "query":"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'qmMeasure.eq':'"+val.lower()+"'}]}",
                 "fields"   : "[memberId]"}
-
+                
                 members = das.all(p).list('memberId')
+                if len(members) > 50:
+                    for chunk in chunks(members, 50):
+                        query2 =   query + "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in chunk])+"]},"
+                        queries.append(query2)
+                else:
+                    query += "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in members])+"]},"
+                    queries.append(query)
                 # query  += "{'or':["+",".join(["{'memberId.eq':'"+m+"'}" for m in members])+"]},"
-                query  += "{'or':[{'memberId.eq':'[" + ",".join([m for m in members])+"]'}]},"
-                # query += "{'or':[{'memberId.eq':'0x8c11b6d71a5951f3af507d23d49ddf24'}]},"
-                # query  = "{'and':[{'or':["+query+"]}]},"
-                # query += "{'primaryDiagnosis.eq':'"+val+"'},"
-    return query
+                # query  += "{'or':[{'memberId.eq':'[" + ",".join([m for m in members])+"]'}]},"
+                # query  += "{'or':[{'memberId.eq':'" + "{'memberId.eq':'".join([m+"'}," for m in members])+"]},"
+    return queries
+
+def empty_query(query):
+    if(query['client']!='ALL' or query['office']!='ALL' or query['level']!='ALL' or 
+       query['gender']!='ALL' or query['age']!='ALL' or query['condition']!='ALL'):
+       return False
+    return True
+
+def claims(das, _from, _to):
+    """get all claims for the time period specified."""
+    param = {
+        "service"  : "search", 
+        "table"    : "smc",
+        "page"     : "1",
+        "pageSize" : "100",
+        # "query"    :"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'}]}"}
+        "query"    :"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'}]}"}
+    return das.all(param)
+
+def months(_from, _to):
+    start = datetime.date(*map(int, _from.split("-")))
+    end   = datetime.date(*map(int, _to.split("-")))
+    
+    m = end-start
+    
+    start_month = start.month
+    end_months  = (end.year-start.year) * 12 + end.month + 1
+    
+    months = end_months - start.month
+    
+    # dates = [datetime.datetime(year=yr, month=mn, day=1) for (yr, mn) in (
+    #      ((m - 1) / 12 + start.year, (m - 1) % 12 + 1) for m in range(start_month, end_months))]
+    
+    return months
+    
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l."""
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
+    
