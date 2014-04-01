@@ -43,12 +43,17 @@ class Das:
         if post:
             c.setopt(c.URL, str(url))
             c.setopt(c.POSTFIELDS, urllib.urlencode(p))
+            # c.setopt(c.HTTPPOST, urllib.urlencode(p))
         else:
             c.setopt(c.URL, url + '?' + urllib.urlencode(p))
         if not peer: c.setopt(c.SSL_VERIFYPEER , 0)
         c.setopt(c.SSLVERSION, 3)
         c.setopt(c.WRITEFUNCTION, response.write)
-        c.perform()
+        try:
+            c.perform()
+        except pycurl.error, error:
+            errno, errstr = error
+            print 'A curl error occurred: ', errstr
         c.close()
         return response.getvalue()
     
@@ -108,6 +113,7 @@ class Das:
         self.call = url + "?" + urllib.urlencode(q)
         print urllib.unquote(self.call) + "\n"
         
+        # response = self.curl(url, q, peer=True, post=True)
         response = self.curl(url, q, peer=True)
         # print response
         return response

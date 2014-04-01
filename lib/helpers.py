@@ -70,7 +70,7 @@ def employers(das, win):
 
 def format_query(q, das, _from, _to):
     query   = ""
-    queries = []
+    # queries = []
     
     for key, val in q.items():
         if val != "ALL":
@@ -100,17 +100,17 @@ def format_query(q, das, _from, _to):
                 "fields"   : "[memberId]"}
                 
                 members = das.all(p).list('memberId')
-                if len(members) > 50:
-                    for chunk in chunks(members, 50):
-                        query2 =   query + "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in chunk])+"]},"
-                        queries.append(query2)
-                else:
-                    query += "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in members])+"]},"
-                    queries.append(query)
+                # if len(members) > 50:
+                #     for chunk in chunks(members, 50):
+                #         query2 =   query + "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in chunk])+"]},"
+                #         queries.append(query2)
+                # else:
+                query += "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in members])+"]},"
+                # queries.append(query)
                 # query  += "{'or':["+",".join(["{'memberId.eq':'"+m+"'}" for m in members])+"]},"
                 # query  += "{'or':[{'memberId.eq':'[" + ",".join([m for m in members])+"]'}]},"
                 # query  += "{'or':[{'memberId.eq':'" + "{'memberId.eq':'".join([m+"'}," for m in members])+"]},"
-    return queries
+    return query
 
 def empty_query(query):
     if(query['client']!='ALL' or query['office']!='ALL' or query['level']!='ALL' or 

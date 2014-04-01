@@ -31,3 +31,9 @@ global name 'response' is not defined
 'result_sets'
 'result_sets'
 'result_sets'
+strings are not supported for this option
+strings are not supported for this option
+strings are not supported for this option
+invalid arguments to setopt
+invalid arguments to setopt
+setopt() takes exactly 2 arguments (1 given)

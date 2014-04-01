@@ -164,15 +164,16 @@ def graph4(das, win, q):
     results = []
     
     for p in range(1, pages+1):
-        for query in queries:
-            cumul = cumulative(reporting_from, reporting_to, query, das, p, psize)        
+        # for query in queries:
+        cumul = cumulative(reporting_from, reporting_to, query, das, p, psize)        
             
-            if cumul:
-                cailms = pd.DataFrame(cumul)[['paidAmount']]
-                total += np.asscalar(cailms.sum())
-            # else:
-            #     return "No Data"
-        results.append({"claims" : p, "cost" : total})
+        if cumul:
+            cailms = pd.DataFrame(cumul)[['paidAmount']]
+            total += np.asscalar(cailms.sum())
+            results.append({"claims" : p, "cost" : total})
+        else:
+            return "No Data"
+        
     for row in results:
         row["cost"] = round(row["cost"]/total*100, 2)
     
