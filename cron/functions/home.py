@@ -2,7 +2,7 @@ import os, datetime, calendar
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
-from lib.helpers import format_query, empty_query, claims
+from lib.helpers import format_query, empty_query, claims, cohort
 
 def graph1(das, win, q):
     reporting_from  = win["reporting_from"]
@@ -152,11 +152,10 @@ def graph4(das, win, q):
     comparison_from = win["comparison_from"]
     comparison_to   = win["comparison_to"]
     
-    queries = format_query(q, das, reporting_from, reporting_to)
+    query = format_query(q, das, reporting_from, reporting_to)
+    cond  = q['condition']
     
-    total_claims = 0
-    for query in queries:
-        total_claims += count_claims(reporting_from, reporting_to, query, das)
+    total_claims = count_claims(reporting_from, reporting_to, query, cond, das)
     
     psize = total_claims / 99 if total_claims % 100 > 0 else total_claims / 100
     pages = 100
@@ -164,29 +163,28 @@ def graph4(das, win, q):
     results = []
     
     for p in range(1, pages+1):
-        # for query in queries:
-        cumul = cumulative(reporting_from, reporting_to, query, das, p, psize)        
+        cumul = cumulative(reporting_from, reporting_to, query, cond, das, p, psize)
             
         if cumul:
             cailms = pd.DataFrame(cumul)[['paidAmount']]
             total += np.asscalar(cailms.sum())
             results.append({"claims" : p, "cost" : total})
-        else:
-            return "No Data"
+        # else:
+        #     return "No Data"
         
     for row in results:
         row["cost"] = round(row["cost"]/total*100, 2)
     
     return results
 
-def count_claims(_from, _to, query, das):
+def count_claims(_from, _to, query, cond, das):
     params = {
         "service"  : "search", 
         "table"    : "smc",
         "page"     : "1",
         "pageSize" : "0",
-        "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query+"]}"}
-    
+        "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query}
+    params = cohort(das, cond, params)
     response = das.to_dict(params)
     return response["summary"]["totalCounts"]
 
@@ -204,7 +202,7 @@ def count_claimants(total, _from, _to, das):
     response = das.to_dict(params)["summary"]["totalCounts"]
     return response
 
-def cumulative(_from, _to, query, das, page, psize):
+def cumulative(_from, _to, query, cond, das, page, psize):
     results = []
     
     params  = {
@@ -213,9 +211,11 @@ def cumulative(_from, _to, query, das, page, psize):
     "page"     : str(page),
     "pageSize" : str(psize),
     "order"    : "paidAmount:desc",
-    "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query+"]}",
-    "fields"   : "[paidAmount]"
+    "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query,
+    "fields"   : "[paidAmount]",
     }
+    params = cohort(das, cond, params)
+    
     response = das.to_dict(params)["result_sets"]
     results += [response[row] for row in response]
     return results

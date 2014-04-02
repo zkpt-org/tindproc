@@ -33,6 +33,7 @@ def timewindow(das):
             "comparison_from" : comparison_from, "comparison_to" : comparison_to}
 
 def chronic(das, win):
+    from collections import OrderedDict
     p = {
     "service":"report",
     "report":"chronicConditions",
@@ -44,13 +45,13 @@ def chronic(das, win):
     "order" : "Admits:desc",
     }
     r = das.response(p)
-    conditions = []
+    conditions = OrderedDict()
     
     for i in sorted(r.data["reporting"]["Default"], key=lambda x: r.data["reporting"]["Default"][x]["withCondition"] 
         if x != "memberCount" and x != "memberMonths" else r.data["reporting"]["Default"][x], reverse=True): 
         if i != "memberCount" and i != "memberMonths":
             # print r.data["reporting"]["Default"][i]["description"], r.data["reporting"]["Default"][i]["withCondition"]
-            conditions.append(r.data["reporting"]["Default"][i]["description"])
+            conditions.update({r.data["reporting"]["Default"][i]["name"] : r.data["reporting"]["Default"][i]["description"]})
     return conditions
 # def top20diagnosis(das, win):
     
@@ -70,7 +71,6 @@ def employers(das, win):
 
 def format_query(q, das, _from, _to):
     query   = ""
-    # queries = []
     
     for key, val in q.items():
         if val != "ALL":
@@ -92,25 +92,40 @@ def format_query(q, das, _from, _to):
                     query += "{'memberAge.gte':'"+val.split('-')[0]+"'},{'memberAge.lte':'"+val.split('-')[1]+"'},"
                 else:
                     query += "{'memberAge.gte':'"+val[:2]+"'},"
-            elif key == "condition":
-                p = {
-                "service":"search",
-                "table":"ms",
-                "query":"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'qmMeasure.eq':'"+val.lower()+"'}]}",
-                "fields"   : "[memberId]"}
-                
-                members = das.all(p).list('memberId')
-                # if len(members) > 50:
-                #     for chunk in chunks(members, 50):
-                #         query2 =   query + "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in chunk])+"]},"
-                #         queries.append(query2)
-                # else:
-                query += "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in members])+"]},"
-                # queries.append(query)
-                # query  += "{'or':["+",".join(["{'memberId.eq':'"+m+"'}" for m in members])+"]},"
-                # query  += "{'or':[{'memberId.eq':'[" + ",".join([m for m in members])+"]'}]},"
-                # query  += "{'or':[{'memberId.eq':'" + "{'memberId.eq':'".join([m+"'}," for m in members])+"]},"
+    # if q["condition"] != "ALL":
+    #         # p = {
+    #         # "service":"search",
+    #         # "table":"ms",
+    #         # "query":"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'qmMeasure.eq':'"+val+"'}]}",
+    #         # "fields"   : "[memberId]"}
+    #         # 
+    #         # members = das.all(p).list('memberId')
+    #         # # if len(members) > 50:
+    #         # #     for chunk in chunks(members, 50):
+    #         # #         query2 =   query + "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in chunk])+"]},"
+    #         # #         queries.append(query2)
+    #         # query += "{'memberId.eq':[" + ",".join(["'"+m+"'" for m in members])+"]},"
+    #         
+    #         p = {
+    #         "service":"create",
+    #         "table":"ms",
+    #         "query":"{'and':[{'qmMeasure.eq':'"+q["condition"]+"'}]}"}
+    #         # "query":"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'qmMeasure.eq':'"+val+"'}]}"}
+    #         cohort = das.to_dict(p)["cohortId"]
+    #         query += "]}&cohortId=" + cohort
+    # else:
+    query += "]}"
     return query
+
+def cohort(das, cond, params):
+    if cond != "ALL":            
+            p = {
+            "service":"create",
+            "table":"ms",
+            "query":"{'and':[{'qmMeasure.eq':'"+cond+"'}]}"}
+            cohort = das.to_dict(p)["cohortId"]
+            params.update({"cohortId":cohort})
+    return params
 
 def empty_query(query):
     if(query['client']!='ALL' or query['office']!='ALL' or query['level']!='ALL' or 

@@ -8,21 +8,21 @@ class Das:
         import config
         self.USER     = config.user
         self.PASS     = config.pwrd
-        # self.HOST     = 'tind-lite.zakipoint.com'
-        # self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
-        # self.SERVICE  = 'https://tind-lite.zakipoint.com'
+        self.HOST     = 'tind-lite.zakipoint.com'
+        self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
+        self.SERVICE  = 'https://tind-lite.zakipoint.com'
         self.PROXY    = 'https://proxy.zakipoint.com/'
         self.VALIDATE = 'https://login.deerwalk.com/cas/serviceValidate'
         self.API_URL  = 'https://das.deerwalk.com'
         self.PT_URL   = 'https://login.deerwalk.com/cas/proxy'
         
         self.CLIENT_ID   = '2000'
-        # self.CLIENT_NAME = 'tind'
+        self.CLIENT_NAME = 'tind'
         
-        self.HOST     = 'sdemo.makalu.deerwalk.com'
-        self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
-        self.SERVICE  = 'https://sdemo.makalu.deerwalk.com'
-        self.CLIENT_NAME = 'sdemo'
+        # self.HOST     = 'sdemo.makalu.deerwalk.com'
+        # self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
+        # self.SERVICE  = 'https://sdemo.makalu.deerwalk.com'
+        # self.CLIENT_NAME = 'sdemo'
         
     def auth(self):
         response = self.get_ticket_granting_ticket(self.USER, self.PASS)

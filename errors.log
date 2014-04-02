@@ -37,3 +37,5 @@ strings are not supported for this option
 invalid arguments to setopt
 invalid arguments to setopt
 setopt() takes exactly 2 arguments (1 given)
+'result_sets'
+'result_sets'

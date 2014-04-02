@@ -34,14 +34,18 @@ win = timewindow(das)
 # mddf = claims.dataframe()
 # sys.exit()
 
+conditions = chronic(das, win)
+
 cuts = [
 ['ALL','XYZ private ltd','ABC corporation'], # client
 ['ALL'], # office
 ['ALL'], # level
 ['ALL', 'Male', 'Female'], # gender
 ['ALL', '18-29', '30-39', '40-49', '50-59', '60-69', '70+'], # age group
-['ALL'] + chronic(das, win) # conditions
+['ALL'] + conditions.keys() # conditions
 ]
+
+# sql.truncate('home_graph4')
 
 # cuts = [
 # ['ALL'], # client
@@ -70,7 +74,7 @@ for cut in itertools.product(*cuts):
     }
     insert = copy.deepcopy(query)
     insert.update({"data":"", "created":"NOW", "modified":"NOW"})
-
+    insert["condition"] = conditions[query["condition"]] if query["condition"] != 'ALL' else 'ALL'
     # try:
         # if not sql.select(table='home_graph1', where=query):
         #     g1 = home.graph1(das, win, query)
