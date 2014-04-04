@@ -154,8 +154,9 @@ def graph4(das, win, q):
     
     query = format_query(q, das, reporting_from, reporting_to)
     cond  = q['condition']
+    cht   = cohort(das, cond)
     
-    total_claims = count_claims(reporting_from, reporting_to, query, cond, das)
+    total_claims = count_claims(reporting_from, reporting_to, query, cht, das)
     
     psize = total_claims / 99 if total_claims % 100 > 0 else total_claims / 100
     pages = 100
@@ -163,28 +164,30 @@ def graph4(das, win, q):
     results = []
     
     for p in range(1, pages+1):
-        cumul = cumulative(reporting_from, reporting_to, query, cond, das, p, psize)
-            
+        cumul = cumulative(reporting_from, reporting_to, query, cht, das, p, psize)
+        
         if cumul:
             cailms = pd.DataFrame(cumul)[['paidAmount']]
             total += np.asscalar(cailms.sum())
             results.append({"claims" : p, "cost" : total})
-        # else:
-        #     return "No Data"
+        else:
+            return [] #"No Data"
         
     for row in results:
         row["cost"] = round(row["cost"]/total*100, 2)
     
     return results
 
-def count_claims(_from, _to, query, cond, das):
+def count_claims(_from, _to, query, cohort, das):
     params = {
         "service"  : "search", 
         "table"    : "smc",
         "page"     : "1",
         "pageSize" : "0",
         "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query}
-    params = cohort(das, cond, params)
+    if cohort is not None: 
+        params.update({"cohortId":cohort})
+    
     response = das.to_dict(params)
     return response["summary"]["totalCounts"]
 
@@ -202,7 +205,7 @@ def count_claimants(total, _from, _to, das):
     response = das.to_dict(params)["summary"]["totalCounts"]
     return response
 
-def cumulative(_from, _to, query, cond, das, page, psize):
+def cumulative(_from, _to, query, cohort, das, page, psize):
     results = []
     
     params  = {
@@ -214,7 +217,8 @@ def cumulative(_from, _to, query, cond, das, page, psize):
     "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query,
     "fields"   : "[paidAmount]",
     }
-    params = cohort(das, cond, params)
+    if cohort is not None: 
+        params.update({"cohortId":cohort})
     
     response = das.to_dict(params)["result_sets"]
     results += [response[row] for row in response]

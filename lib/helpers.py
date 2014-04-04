@@ -117,15 +117,16 @@ def format_query(q, das, _from, _to):
     query += "]}"
     return query
 
-def cohort(das, cond, params):
+def cohort(das, cond):
     if cond != "ALL":            
-            p = {
-            "service":"create",
-            "table":"ms",
-            "query":"{'and':[{'qmMeasure.eq':'"+cond+"'}]}"}
-            cohort = das.to_dict(p)["cohortId"]
-            params.update({"cohortId":cohort})
-    return params
+        p = {
+        "service":"create",
+        "table":"ms",
+        "query":"{'and':[{'qmMeasure.eq':'"+cond+"'}]}"}
+        cohort = das.to_dict(p)["cohortId"] 
+    else:
+        cohort = None
+    return cohort
 
 def empty_query(query):
     if(query['client']!='ALL' or query['office']!='ALL' or query['level']!='ALL' or 
