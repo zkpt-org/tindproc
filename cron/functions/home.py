@@ -11,13 +11,20 @@ def graph1(das, win, q):
     comparison_from = win["comparison_from"]
     comparison_to   = win["comparison_to"]
     
-    if empty_query(q):
-        data = graph1_summary(das, win)
-    else:
-        # query = format_query(q, das, reporting_from, reporting_to)
-        resp = claims(das, reporting_from, reporting_to)
-        df = resp.dataframe()
-        return df
+    # if empty_query(q):
+    #     data = graph1_summary(das, win)
+    # else:
+    # query = format_query(q, das, reporting_from, reporting_to)
+    query = format_query(q, das, reporting_from, reporting_to)
+    cond  = q['condition']
+    cohrt = cohort(das, cond)
+    
+    rsp = claims(das, reporting_from, reporting_to, query, cohrt)
+    df  = rsp.dataframe()
+    
+    
+    
+    return df
     
     # return data
 

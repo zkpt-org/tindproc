@@ -15,7 +15,7 @@ def lastdate(das):
     except Exception,e:
         print str(e)+"\n"
         with open("../errors.log", "a+") as f: f.write(str(e)+"\n")
-    
+
 def timewindow(das):
     """Get the last date recorded in the dataset."""
     ld = lastdate(das)
@@ -53,8 +53,6 @@ def chronic(das, win):
             # print r.data["reporting"]["Default"][i]["description"], r.data["reporting"]["Default"][i]["withCondition"]
             conditions.update({r.data["reporting"]["Default"][i]["name"] : r.data["reporting"]["Default"][i]["description"]})
     return conditions
-# def top20diagnosis(das, win):
-    
 
 def employers(das, win):
     p = {
@@ -128,22 +126,28 @@ def cohort(das, cond):
         cohort = None
     return cohort
 
+def add_cohort(cohort, params):
+    if cohort is not None: 
+        params.update({"cohortId":cohort})
+    return params
+
 def empty_query(query):
     if(query['client']!='ALL' or query['office']!='ALL' or query['level']!='ALL' or 
        query['gender']!='ALL' or query['age']!='ALL' or query['condition']!='ALL'):
        return False
     return True
 
-def claims(das, _from, _to):
+def claims(das, _from, _to, query, cohort):
     """get all claims for the time period specified."""
-    param = {
+    params = {
         "service"  : "search", 
         "table"    : "smc",
-        "page"     : "1",
         "pageSize" : "100",
-        # "query"    :"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'}]}"}
-        "query"    :"{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'}]}"}
-    return das.all(param)
+        "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},"+query}
+        # "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query} 
+    
+    params = add_cohort(cohort, params)
+    return das.all(params)
 
 def months(_from, _to):
     start = datetime.date(*map(int, _from.split("-")))
@@ -160,7 +164,7 @@ def months(_from, _to):
     #      ((m - 1) / 12 + start.year, (m - 1) % 12 + 1) for m in range(start_month, end_months))]
     
     return months
-    
+
 def chunks(l, n):
     """ Yield successive n-sized chunks from l."""
     for i in xrange(0, len(l), n):
