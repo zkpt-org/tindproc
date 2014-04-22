@@ -8,7 +8,7 @@ os.chdir(dirname)
 sys.path.append('../')
 from das.das import Das
 from lib.db import PgSQL
-from lib.helpers import timewindow, chronic, employers, claims
+from lib.helpers import timewindow, chronic, employers, claims, get_cohort
 from functions import home
 
 # set up ipython development environment
@@ -65,30 +65,32 @@ for cut in itertools.product(*cuts):
     }
     insert = copy.deepcopy(query)
     verify = copy.deepcopy(query)
+
     insert.update({"data":"", "created":"NOW", "modified":"NOW"})
     insert["condition"] = conditions[query["condition"]] if query["condition"] != 'ALL' else 'ALL'
     verify["condition"] = conditions[query["condition"]] if query["condition"] != 'ALL' else 'ALL'
+    
+    cohort = get_cohort(sql, das, query)
     # try:
     if not sql.select(table='home_graph1', where=verify):
-        g1 = home.graph1(das, win, query)
-    # g1 = json.dumps(home.graph1(das, win, query))
-    # insert["data"] = str(g1)
-    # sql.insert(table='home_graph1', rows=[insert])
-    #     
-    # if not sql.select(table='home_graph2', where=verify):
-    #     g2 = json.dumps(home.graph2(das, win))
-    #     insert["data"] = str(g2)
-    #     sql.insert(table='home_graph2', rows=[insert])
-    #     
+        g1 = json.dumps(home.graph1(das, win, cohort))
+        insert["data"] = str(g1)
+        sql.insert(table='home_graph1', rows=[insert])
+    
+    if not sql.select(table='home_graph2', where=verify):
+        g2 = json.dumps(home.graph2(das, win, cohort))
+        insert["data"] = str(g2)
+        sql.insert(table='home_graph2', rows=[insert])
+    
     # if not sql.select(table='home_graph3', where=verify):
-    #     g3 = json.dumps(home.graph3(das, win))
+    #     g3 = json.dumps(home.graph3(das, win, cohort))
     #     insert["data"] = str(g3) 
     #     sql.insert(table='home_graph3', rows=[insert])
         
-    # if not sql.select(table='home_graph4', where=verify):
-    #     g4 = json.dumps(home.graph4(das, win, query))
-    #     insert["data"] = str(g4)
-    #     sql.insert(table='home_graph4', rows=[insert])
+    if not sql.select(table='home_graph4', where=verify):
+        g4 = json.dumps(home.graph4(das, win, cohort))
+        insert["data"] = str(g4)
+        sql.insert(table='home_graph4', rows=[insert])
 
     # except Exception,e:
     #     print str(e)+"\n"

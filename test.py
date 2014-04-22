@@ -17,7 +17,9 @@ else:
     das = Das()
     das.PGT = os.environ['PGT']
 
-p = {"service" : "search", "table" : "ms"}
+# p = {"service" : "search", "table" : "ms"}
+# p = {"service" : "search", "table" : "ms", "cohortId" : "74028_1396993055652_891847"}
+p = {"service" : "search", "table" : "ms", 'query' : "{'and':[{'memberGender.eq':'F'}]}"}
 # p = {"service" : "search", "table" : "ms", "page" : "1", "pageSize" : "10"}
 # p = {"service"       : "report",
 #     "report"         : "summary",

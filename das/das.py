@@ -1,7 +1,7 @@
 import urllib, pycurl, cStringIO, os, config, copy
 from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
 from response import DasResponse
-#from django.http import QueryDict
+from cohort import DasCohort
 
 class Das:
     def __init__(self):
@@ -18,12 +18,7 @@ class Das:
         
         self.CLIENT_ID   = '2000'
         self.CLIENT_NAME = 'tind'
-        
-        # self.HOST     = 'sdemo.makalu.deerwalk.com'
-        # self.TICKETS  = 'https://login.deerwalk.com/cas/v1/tickets'
-        # self.SERVICE  = 'https://sdemo.makalu.deerwalk.com'
-        # self.CLIENT_NAME = 'sdemo'
-        
+    
     def auth(self):
         response = self.get_ticket_granting_ticket(self.USER, self.PASS)
         
@@ -43,7 +38,6 @@ class Das:
         if post:
             c.setopt(c.URL, str(url))
             c.setopt(c.POSTFIELDS, urllib.urlencode(p))
-            # c.setopt(c.HTTPPOST, urllib.urlencode(p))
         else:
             c.setopt(c.URL, url + '?' + urllib.urlencode(p))
         if not peer: c.setopt(c.SSL_VERIFYPEER , 0)
@@ -115,13 +109,13 @@ class Das:
         
         # response = self.curl(url, q, peer=True, post=True)
         response = self.curl(url, q, peer=True)
-        # print response
         return response
     
     def to_dict(self, p):
         """Make API call and return result string as a dictionary."""
         import json
         data = self.api(p)
+        print data
         return json.loads(data)
         
     
@@ -173,7 +167,7 @@ class Das:
             qtime += r.querytime
             rtime += r.rendertime
         
-        # if responses:    
+        # if responses:
         r.results = concat0
         r.raw = "[" + ",".join(concat2) + "]"
         
@@ -185,6 +179,17 @@ class Das:
         return r
         # else:
         #     return DasResponse(self, {}).nullset()
+    
+    def cohort(self, query=None, id=None):
+        """Return DasCohort object."""
+        if query is not None and id is None:
+            cohort = DasCohort(self).create(query)
+        elif query is None and id is None:
+            print "Specify cohort id or pass parameters to create a new cohort."
+            return None
+        else:
+            cohort = DasCohort(self, id=id)
+        return cohort
     
     def api_call(self, p):
         for k, v in p.iteritems(): 

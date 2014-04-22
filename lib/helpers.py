@@ -1,5 +1,6 @@
-import datetime, calendar
+import datetime, calendar, copy, json
 from dateutil.relativedelta import relativedelta
+from collections import OrderedDict
 
 def lastdate(das):
     try:
@@ -67,8 +68,8 @@ def employers(das, win):
     
     return list(set([(i.groupIdName, i.groupId) for i in emp.results if 'groupIdName' in vars(i)]))
 
-def format_query(q, das, _from, _to):
-    query   = ""
+def format_query(q):
+    query = ""
     
     for key, val in q.items():
         if val != "ALL":
@@ -90,6 +91,8 @@ def format_query(q, das, _from, _to):
                     query += "{'memberAge.gte':'"+val.split('-')[0]+"'},{'memberAge.lte':'"+val.split('-')[1]+"'},"
                 else:
                     query += "{'memberAge.gte':'"+val[:2]+"'},"
+            elif key == "condition":
+                query += "{'qmMeasure.eq':'"+val+"'},"
     # if q["condition"] != "ALL":
     #         # p = {
     #         # "service":"search",
@@ -112,8 +115,39 @@ def format_query(q, das, _from, _to):
     #         cohort = das.to_dict(p)["cohortId"]
     #         query += "]}&cohortId=" + cohort
     # else:
-    query += "]}"
+    # query += "]}"
     return query
+
+def get_cohort(sql, das, q):
+    traits = copy.deepcopy(q)
+    if "start_date" in traits: del traits["start_date"]
+    if "end_date" in traits:   del traits["end_date"]
+    
+    if all(v == 'ALL' for v in traits.values()):
+        return None
+    
+    for key, val in traits.items():
+        if val == 'ALL':
+            del traits[key]
+            
+    o = OrderedDict(sorted([(key, val) for key, val in traits.items()]))
+    t = json.dumps(o)
+    
+    if not sql.select(table='data_cohort', where="traits='%s'" % t):        
+        print "creating new cohort."
+        query = format_query(q)
+        cohort = das.cohort(query)
+        p = {
+            "service":"create",
+            "table":"ms",
+            "query":"{'and':[%s]}" % query
+        }
+        cohort = das.to_dict(p)["cohortId"]
+        sql.insert(table='data_cohort', rows=[{'cohort_id':cohort,'traits':t}])
+    else:
+        print "cohort exists", cohort
+        cohort = sql.select(table='data_cohort', where="traits='%s'" % t)[0][1]
+    return cohort
 
 def cohort(das, cond):
     if cond != "ALL":            

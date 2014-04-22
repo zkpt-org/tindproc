@@ -1,34 +1,53 @@
-import os, datetime, calendar
+import os, datetime, calendar, sys
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import numpy as np
-from lib.helpers import format_query, empty_query, claims, cohort
+from lib.helpers import format_query, empty_query, claims #, cohort
 
-def graph1(das, win, q):
+def graph1(das, win, cohort):
     reporting_from  = win["reporting_from"]
     reporting_to    = win["reporting_to"]
     
     comparison_from = win["comparison_from"]
     comparison_to   = win["comparison_to"]
     
-    # if empty_query(q):
-    #     data = graph1_summary(das, win)
-    # else:
-    # query = format_query(q, das, reporting_from, reporting_to)
-    query = format_query(q, das, reporting_from, reporting_to)
-    cond  = q['condition']
-    cohrt = cohort(das, cond)
+    params = {
+        "service"         : "report", 
+        "report"          : "summary",
+        "reportingBasis"  : "ServiceDate",
+        "eligibilityType" : "[medical]",
+        "reportingFrom"   : reporting_from,
+        "reportingTo"     : reporting_to,
+        "comparisonFrom"  : comparison_from,
+        "comparisonTo"    : comparison_to}
     
-    rsp = claims(das, reporting_from, reporting_to, query, cohrt)
-    df  = rsp.dataframe()
+    if cohort is not None:
+        params.update({"cohortId":cohort})
     
+    response = das.to_dict(params)
+    comparison = response["comparison"][0]
+    reporting  = response["reporting"][0]
     
+    data = [
+        {
+            "Period"         : "Reporting",
+            "Inpatient"      : round(reporting["Inpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+            "Outpatient"     : round(reporting["Outpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+            "Office Visit"   : round(reporting["Office"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+            "Pharmacy Claims": round(reporting["totalPharmacyPaidAmount"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+        },
+        {
+            "Period"         : "Comparison",
+            "Inpatient"      : round(comparison["Inpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+            "Outpatient"     : round(comparison["Outpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+            "Office Visit"   : round(comparison["Office"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+            "Pharmacy Claims": round(comparison["totalPharmacyPaidAmount"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
+        },
+    ]
     
-    return df
-    
-    # return data
+    return data
 
-def graph2(das, win):
+def graph2(das, win, cohort):
     reporting_from  = win["reporting_from"]
     reporting_to    = win["reporting_to"]
     
@@ -61,6 +80,9 @@ def graph2(das, win):
             "comparisonFrom": (d - relativedelta(years=1)).strftime("%Y-%m-%d"),
             "comparisonTo"  : datetime.date(d.year-1, d.month, calendar.monthrange(d.year, d.month)[1]).strftime("%Y-%m-%d")}
         
+        if cohort is not None:
+            params.update({"cohortId":cohort})
+        
         response = das.to_dict(params)
         comparison = response["comparison"][0]
         reporting  = response["reporting"][0]
@@ -68,12 +90,12 @@ def graph2(das, win):
         data.append({
             "month"  : 12 - d.month, #d.strftime("%B"),
             "date"   : d.strftime("%Y-%m-%d"),
-            "total"     : round((reporting["totalPharmacyPaidAmount"]  + reporting["totalMedicalPaidAmount"])  / reporting["memberMonths"]),
-            "benchmark" : round((comparison["totalPharmacyPaidAmount"] + comparison["totalMedicalPaidAmount"]) / comparison["memberMonths"])})
+            "total"     : round((reporting["totalPharmacyPaidAmount"]  + reporting["totalMedicalPaidAmount"])  / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
+            "benchmark" : round((comparison["totalPharmacyPaidAmount"] + comparison["totalMedicalPaidAmount"]) / comparison["memberMonths"])}) if comparison["memberMonths"]!=0 else 0
     
     return data
 
-def graph3(das, win):
+def graph3(das, win, cohort):
     reporting_from  = win["reporting_from"]
     reporting_to    = win["reporting_to"]
     
@@ -101,6 +123,9 @@ def graph3(das, win):
             "comparisonFrom": comparison_from,
             "comparisonTo"  : comparison_to}
         
+        # if cohort is not None:
+        #     params.update({"cohortId":cohort})
+        
         response = das.to_dict(params)
         
     except Exception, e:
@@ -113,19 +138,19 @@ def graph3(das, win):
         reporting  = response["reporting"][0]
                 
         """Calculate the number of claims for reporting Period."""
-        claims = count_claims(reporting_from, reporting_to, das)        
+        claims = count_claims(das, reporting_from, reporting_to, cohort)
         """Calculate the number of claimants for Reporting Period."""
-        claimants = count_claimants(claims, reporting_from, reporting_to, das)
+        claimants = count_claimants(das, reporting_from, reporting_to)
         
         """Calculate the number of claims Comparison Period."""
-        claims2 = count_claims(comparison_from, comparison_to, das)
+        claims2 = count_claims(das, comparison_from, comparison_to, cohort)
         """Calculate the number of claimants for Reporting Period."""
-        claimants2 = count_claimants(claims, comparison_from, comparison_to, das)
+        claimants2 = count_claimants(das, comparison_from, comparison_to)
         
         """Calculate the number of ER visits for Reporting Period."""
-        er_visit = count_er_visits(reporting_from, reporting_to, das)
+        er_visit = count_er_visits(das, reporting_from, reporting_to)
         """Calculate the number of ER visits for Comparison Period."""
-        er_visit2 = count_er_visits(comparison_from, comparison_to, das)
+        er_visit2 = count_er_visits(das, comparison_from, comparison_to)
         
         data = {
             "reporting":{
@@ -152,53 +177,37 @@ def graph3(das, win):
         
         return data
 
-def graph4(das, win, q):
+def graph4(das, win, cohort):
     reporting_from  = win["reporting_from"]
     reporting_to    = win["reporting_to"]
     
     comparison_from = win["comparison_from"]
     comparison_to   = win["comparison_to"]
     
-    query = format_query(q, das, reporting_from, reporting_to)
-    cond  = q['condition']
-    cht   = cohort(das, cond)
+    total_claims = count_claims(das, reporting_from, reporting_to, cohort)
     
-    total_claims = count_claims(reporting_from, reporting_to, query, cht, das)
-    
-    psize = total_claims / 99 if total_claims % 100 > 0 else total_claims / 100
-    pages = 100
-    total = 0
-    results = []
-    
-    for p in range(1, pages+1):
-        cumul = cumulative(reporting_from, reporting_to, query, cht, das, p, psize)
+    if total_claims <= 5000:
+        results = cumulativeF1(das, reporting_from, reporting_to, cohort)
+    else:
+        results = cumulativeF2(das, reporting_from, reporting_to, cohort, total_claims)
         
-        if cumul:
-            cailms = pd.DataFrame(cumul)[['paidAmount']]
-            total += np.asscalar(cailms.sum())
-            results.append({"claims" : p, "cost" : total})
-        else:
-            return [] #"No Data"
-        
-    for row in results:
-        row["cost"] = round(row["cost"]/total*100, 2)
-    
     return results
 
-def count_claims(_from, _to, query, cohort, das):
+def count_claims(das, _from, _to, cohort):
     params = {
         "service"  : "search", 
         "table"    : "smc",
         "page"     : "1",
         "pageSize" : "0",
-        "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query}
-    if cohort is not None: 
+        "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'}]}"}
+    
+    if cohort is not None:
         params.update({"cohortId":cohort})
     
     response = das.to_dict(params)
     return response["summary"]["totalCounts"]
 
-def count_claimants(total, _from, _to, das):
+def count_claimants(das, _from, _to, total):
     params = {
     "service"     : "search",
     "table"       : "ms",
@@ -212,26 +221,7 @@ def count_claimants(total, _from, _to, das):
     response = das.to_dict(params)["summary"]["totalCounts"]
     return response
 
-def cumulative(_from, _to, query, cohort, das, page, psize):
-    results = []
-    
-    params  = {
-    "service"  : "search", 
-    "table"    : "smc",
-    "page"     : str(page),
-    "pageSize" : str(psize),
-    "order"    : "paidAmount:desc",
-    "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'},"+query,
-    "fields"   : "[paidAmount]",
-    }
-    if cohort is not None: 
-        params.update({"cohortId":cohort})
-    
-    response = das.to_dict(params)["result_sets"]
-    results += [response[row] for row in response]
-    return results
-
-def count_er_visits(_from, _to, das):
+def count_er_visits(das, _from, _to):
     params = {
         "service"  : "search", 
         "table"    : "smc",
@@ -241,41 +231,86 @@ def count_er_visits(_from, _to, das):
     
     return das.to_dict(params)["summary"]["totalCounts"]
 
-def graph1_summary(das, win):
-    reporting_from  = win["reporting_from"]
-    reporting_to    = win["reporting_to"]
+def cumulativeF1(das, _from, _to, cohort):
+    params  = {
+    "service"  : "search", 
+    "table"    : "smc",
+    "pageSize" : 100,
+    "order"    : "paidAmount:desc",
+    "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'}]}",
+    "fields"   : "[paidAmount]",
+    }
+    if cohort is not None:
+        params.update({"cohortId":cohort})
     
-    comparison_from = win["comparison_from"]
-    comparison_to   = win["comparison_to"]
+    response = das.all(params)
+    df = response.dataframe()
     
-    params = {
-        "service"       : "report", 
-        "report"        : "summary",
-        "reportingBasis": "ServiceDate",
-        "eligibilityType":"[medical]",
-        "reportingFrom" : reporting_from,
-        "reportingTo"   : reporting_to,
-        "comparisonFrom": comparison_from,
-        "comparisonTo"  : comparison_to}
+    if df.empty:
+        return []
     
-    response = das.to_dict(params)
-    comparison = response["comparison"][0]
-    reporting  = response["reporting"][0]
+    df = df.sort(['paidAmount'], ascending=[0])
+    total = len(df.paidAmount)
     
-    data = [
-        {
-            "Period"         : "Reporting",
-            "Inpatient"      : round(reporting["Inpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-            "Outpatient"     : round(reporting["Outpatient"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-            "Office Visit"   : round(reporting["Office"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-            "Pharmacy Claims": round(reporting["totalPharmacyPaidAmount"] / reporting["memberMonths"]) if reporting["memberMonths"]!=0 else 0,
-        },
-        {
-            "Period"         : "Comparison",
-            "Inpatient"      : round(comparison["Inpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-            "Outpatient"     : round(comparison["Outpatient"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-            "Office Visit"   : round(comparison["Office"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-            "Pharmacy Claims": round(comparison["totalPharmacyPaidAmount"] / comparison["memberMonths"]) if comparison["memberMonths"]!=0 else 0,
-        },
-    ]
-    return data
+    size = total / 99 if total % 100 > 0 else total / 100
+    cost = 0
+    i0 = 0
+    i1 = size
+    results = []
+    
+    if total < 100:
+        return [] #"No Data
+    else:
+        for percent in range(1, 101):
+            claims = df.paidAmount[i0:i1]
+            """A try-catch block to catch a numpy bug."""
+            try:
+                cost += np.asscalar(claims.sum())
+            except Exception as e:
+                cost += claims.sum()
+            results.append({"claims" : percent, "cost" : cost})
+            i0 = i0 + size
+            i1 = i1 + size
+        for row in results:
+            row["cost"] = round(row["cost"]/cost*100, 2)
+    return results
+
+def cumulativeF2(das, _from, _to, cohort, total_claims):
+    psize = total_claims / 99 if total_claims % 100 > 0 else total_claims / 100
+    pages = 100
+    total = 0
+    results = []
+        
+    for p in range(1, pages+1):
+        cumul = cumulativeF2Sub(das, _from, _to, cohort, p, psize)
+    
+        if cumul:
+            cailms = pd.DataFrame(cumul)[['paidAmount']]
+            total += np.asscalar(cailms.sum())
+            results.append({"claims" : p, "cost" : total})
+        else:
+            return [] #"No Data
+    
+    for row in results:
+        row["cost"] = round(row["cost"]/total*100, 2)
+    
+    return results
+
+def cumulativeF2Sub(das, _from, _to, cohort, page, psize):
+    results = []
+    
+    params  = {
+    "service"  : "search", 
+    "table"    : "smc",
+    "page"     : str(page),
+    "pageSize" : str(psize),
+    "order"    : "paidAmount:desc",
+    "query"    : "{'and':[{'serviceDate.gte':'" + _from + "'},{'serviceDate.lte':'" + _to + "'},{'paidAmount.gt':'0'}]}",
+    "fields"   : "[paidAmount]",
+    }
+    if cohort is not None:
+        params.update({"cohortId":cohort})
+    
+    response = das.to_dict(params)["result_sets"]
+    results += [response[row] for row in response]
+    return results
