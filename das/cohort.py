@@ -2,18 +2,20 @@ class DasCohort:
     def __init__(self, das, id=None):
         self.id  = id
         self.das = das
-        
+    
     def create(self, query):
         """Create a new cohort."""
-        p = {"service":"create", "table":"ms", "query":"{'and':[%s]}" % query}
+        p = {"service":"search", "table":"ms", "pageSize":"0", "query":"{'and':[%s]}" % query}
+        r = self.das.response(p)
+        
+        p = {"service":"create", "table":"ms", "pageSize":r.total, "query":"{'and':[%s]}" % query}
         self.id = self.das.to_dict(p)["cohortId"]
         
-        p = {"service":"search", "table":"ms", "pageSize":"100", "fields":"[memberId]", "query":"{'and':[%s]}" % query}
-        members = self.das.all(p).list('memberId')
-        self.update(add=members)
-        
+        # p = {"service":"search", "table":"ms", "pageSize":"100", "fields":"[memberId]", "query":"{'and':[%s]}" % query}
+        # members = self.das.all(p).list('memberId')
+        # self.update(add=members)
         return self
-        
+    
     def update(self, add=None, remove=None):
         """Update an existing cohort with list of members to be added or removed."""
         if add:
@@ -37,7 +39,7 @@ class DasCohort:
                 memberIds_removed = "[" + ",".join(['"' + a + '"' for a in add]) + "]"
                 p = {"service" : "update", "memberIds_removed" : memberIds_removed, "cohortId" : self.id}
                 r = self.das.api(p)
-        
+    
     def delete(self, id=None):
         """Delete the cohort with the specified member id."""
         p = {
@@ -47,8 +49,9 @@ class DasCohort:
         self.das.api(p)
         print "Cohort", self.id, "deleted."
         return self.id
-        
+    
     def chunks(self, l, n):
         """ Yield successive n-sized chunks from l."""
         for i in xrange(0, len(l), n):
             yield l[i:i+n]
+    
